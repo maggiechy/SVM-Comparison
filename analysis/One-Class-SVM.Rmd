@@ -1,0 +1,83 @@
+---
+title: "One-Class-SVM"
+author: "Your Name"
+date: "2020-01-31"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+This is the use of one-class SVM on iris dataset.
+
+#1 A general ocsvm model.
+```{r}
+
+library(e1071)
+data(iris)
+data<-iris
+```
+```{r}
+data<-subset(data,Species=='versicolor')
+x<-subset(data,select=-Species)#make x variables
+y<-data$Species#make y variable
+model<-svm(x,y,type='one-classification')
+print(model)
+summary(model)
+```
+```{r}
+#test on the whole set
+predict(model,subset(iris,select=-Species))
+```
+
+#2 A more elaborate model:
+```{r}
+library(e1071)
+library(caret)
+library(NLP)
+library(tm)
+
+data(iris)
+iris$SpeciesClass[iris$Species=="versicolor"] <- "TRUE"
+iris$SpeciesClass[iris$Species!="versicolor"] <- "FALSE"
+print(iris$SpeciesClass)
+```
+```{r}
+trainPositive<-subset(iris,SpeciesClass=="TRUE")
+testNegative<-subset(iris,SpeciesClass=="FALSE")
+
+# 60% of the "TRUE" dataset is made training set
+inTrain<-createDataPartition(1:nrow(trainPositive),p=0.6,list=FALSE)
+
+trainpredictors<-trainPositive[inTrain,1:4]
+trainLabels<-trainPositive[inTrain,6]
+```
+```{r}
+# 40% of the "TRUE" data and all "FALSE" data are made test set
+testPositive<-trainPositive[-inTrain,]
+test<-rbind(testPositive,testNegative)
+
+testpredictors<-test[,1:4]
+testLabels<-test[,6]
+```
+```{r}
+#one-class svm model
+ocsvm.model<-svm(trainpredictors,y=NULL,
+               type='one-classification',
+               nu=0.10,
+               scale=TRUE,
+               kernel="radial")
+
+#predict the trainging dataset and the test dataset
+ocsvm.predtrain<-predict(ocsvm.model,trainpredictors)
+ocsvm.predtest<-predict(ocsvm.model,testpredictors)
+
+confTrain<-table(Predicted=ocsvm.predtrain,Reference=trainLabels)
+confTest<-table(Predicted=ocsvm.predtest,Reference=testLabels)
+
+confusionMatrix(confTest,positive='TRUE')
+```
+```{r}
+#apply the model to the test set
+print(confTrain)
+print(confTest)
+```
+See the test dataset prediction result, the accuracy is 94.07% and there are totally 3+4=7 wrong-predicted data. 
